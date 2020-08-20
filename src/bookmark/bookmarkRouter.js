@@ -1,3 +1,4 @@
+const path = require('path')
 const express = require('express')
 const xss = require('xss')
 const { v4: uuid } = require('uuid')
@@ -57,7 +58,7 @@ bookmarkRouter
     .then(bookmark => {
       res
       .status(201)
-      .location(`/bookmarks/${bookmark.id}`)
+      .location(path.posix.join(req.originalUrl, `/${bookmark.id}`))
       .json(bookmark)
     })
     .catch(next)
@@ -108,6 +109,30 @@ bookmarkRouter
         .end()
       })
       .catch(next)
+  })
+  .patch(bodyParser, (req, res, next) => {
+    const { title, url, description, rating } = req.body
+    const bookmarkToUpdate = { title, url, description, rating }
+    const knexInstance = req.app.get('db')
+
+    const numberOfValues = Object.values(bookmarkToUpdate).filter(Boolean).length
+    if (numberOfValues === 0) {
+      return res.status(400).json({
+        error: {
+          message: `Request body must contain either 'title', 'url', 'description' or 'rating'`
+        }
+      })
+    }
+    BookmarksService.updateBookmark(
+      knexInstance,
+      req.params.id,
+      bookmarkToUpdate
+    )
+    //ask jeremy about this
+    .then(numRowsAffected => {
+      res.status(204).end()
+    })
+    .catch(next)
   })
 
 module.exports = bookmarkRouter
